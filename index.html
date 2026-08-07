@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Heroic Library</title>
+    <title>Game Library</title>
 
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#121212">
 
     <link rel="manifest" href='data:application/manifest+json,{
-        "name": "Heroic Game Library",
-        "short_name": "Heroic",
+        "name": "Game Library",
+        "short_name": "Library",
         "start_url": ".",
         "display": "standalone",
         "background_color": "#121212",
@@ -59,11 +59,6 @@
             margin-bottom: 12px;
         }
 
-        .search-box:focus {
-            border-color: #555;
-        }
-
-        /* Category Filter Tabs */
         .tabs {
             display: flex;
             gap: 8px;
@@ -84,7 +79,6 @@
             font-weight: 600;
             white-space: nowrap;
             cursor: pointer;
-            transition: all 0.2s ease;
         }
 
         .tab-btn.active {
@@ -93,7 +87,6 @@
             border-color: #ffffff;
         }
 
-        /* Game Card Layout */
         .card-container {
             display: flex;
             flex-direction: column;
@@ -108,7 +101,6 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
         .game-title {
@@ -116,7 +108,6 @@
             font-weight: 500;
             color: #e2e8f0;
             padding-right: 12px;
-            line-height: 1.3;
         }
 
         /* Platform Color Badges */
@@ -130,6 +121,7 @@
             white-space: nowrap;
         }
 
+        .badge-steam { background: rgba(102, 192, 244, 0.2); color: #66c0f4; border: 1px solid rgba(102, 192, 244, 0.4); }
         .badge-epic { background: rgba(255, 255, 255, 0.08); color: #f5f5f5; border: 1px solid #444; }
         .badge-gog { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); }
         .badge-prime { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); }
@@ -147,14 +139,15 @@
 
     <div class="sticky-header">
         <div class="title-row">
-            <h2>My Library</h2>
-            <span style="font-size: 13px; color: #888;">1199 Total Games</span>
+            <h2>Unified Library</h2>
+            <span style="font-size: 13px; color: #888;">1199 Games</span>
         </div>
 
         <input type="text" id="searchInput" class="search-box" placeholder="Search games..." oninput="filterGames()">
 
         <div class="tabs">
             <button class="tab-btn active" onclick="setCategory('all', this)">All (1199)</button>
+            <button class="tab-btn" onclick="setCategory('steam', this)">Steam (0)</button>
             <button class="tab-btn" onclick="setCategory('epic', this)">Epic (553)</button>
             <button class="tab-btn" onclick="setCategory('gog', this)">GOG (295)</button>
             <button class="tab-btn" onclick="setCategory('prime', this)">Prime (351)</button>
@@ -6167,11 +6160,8 @@
 
         function setCategory(category, btn) {
             currentCategory = category;
-            
-            // Toggle active tab style
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            
             filterGames();
         }
 
