@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Game Library</title>
+    <title>My PC Gaming Library</title>
 
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#121212">
 
     <link rel="manifest" href='data:application/manifest+json,{
-        "name": "Game Library",
+        "name": "My PC Gaming Library",
         "short_name": "Library",
         "start_url": ".",
         "display": "standalone",
@@ -59,6 +59,10 @@
             margin-bottom: 12px;
         }
 
+        .search-box:focus {
+            border-color: #555;
+        }
+
         .tabs {
             display: flex;
             gap: 8px;
@@ -79,6 +83,7 @@
             font-weight: 600;
             white-space: nowrap;
             cursor: pointer;
+            transition: all 0.2s ease;
         }
 
         .tab-btn.active {
@@ -101,6 +106,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
         .game-title {
@@ -108,6 +114,7 @@
             font-weight: 500;
             color: #e2e8f0;
             padding-right: 12px;
+            line-height: 1.3;
         }
 
         .badge {
@@ -139,17 +146,17 @@
     <div class="sticky-header">
         <div class="title-row">
             <h2>My PC Gaming Library</h2>
-            <span style="font-size: 13px; color: #888;">1667 Games</span>
+            <span style="font-size: 13px; color: #888;">1674 Total Games</span>
         </div>
 
         <input type="text" id="searchInput" class="search-box" placeholder="Search games..." oninput="filterGames()">
 
         <div class="tabs">
-            <button class="tab-btn active" onclick="setCategory('all', this)">All (1667)</button>
-            <button class="tab-btn" onclick="setCategory('steam', this)">Steam (468)</button>
+            <button class="tab-btn active" onclick="setCategory('all', this)">All (1674)</button>
+            <button class="tab-btn" onclick="setCategory('steam', this)">Steam (477)</button>
             <button class="tab-btn" onclick="setCategory('epic', this)">Epic (553)</button>
             <button class="tab-btn" onclick="setCategory('gog', this)">GOG (295)</button>
-            <button class="tab-btn" onclick="setCategory('prime', this)">Prime (351)</button>
+            <button class="tab-btn" onclick="setCategory('prime', this)">Prime (349)</button>
         </div>
     </div>
 
@@ -173,6 +180,11 @@
     <div class="game-card" data-store="prime" data-title="3 count bout">
         <span class="game-title">3 Count Bout</span>
         <span class="badge badge-prime">Prime Gaming</span>
+    </div>
+    
+    <div class="game-card" data-store="steam" data-title="3dmark demo">
+        <span class="game-title">3DMark Demo</span>
+        <span class="badge badge-steam">Steam</span>
     </div>
     
     <div class="game-card" data-store="gog" data-title="60 minutes to extinction: escape room">
@@ -443,6 +455,11 @@
     <div class="game-card" data-store="gog" data-title="another world: 20th anniversary edition">
         <span class="game-title">Another World: 20th Anniversary Edition</span>
         <span class="badge badge-gog">GOG</span>
+    </div>
+    
+    <div class="game-card" data-store="steam" data-title="apex legends">
+        <span class="game-title">Apex Legends</span>
+        <span class="badge badge-steam">Steam</span>
     </div>
     
     <div class="game-card" data-store="prime" data-title="apico">
@@ -1075,6 +1092,11 @@
         <span class="badge badge-epic">Epic Games</span>
     </div>
     
+    <div class="game-card" data-store="steam" data-title="brawlhalla">
+        <span class="game-title">Brawlhalla</span>
+        <span class="badge badge-steam">Steam</span>
+    </div>
+    
     <div class="game-card" data-store="epic" data-title="breakout: recharged">
         <span class="game-title">Breakout: Recharged</span>
         <span class="badge badge-epic">Epic Games</span>
@@ -1442,6 +1464,11 @@
     
     <div class="game-card" data-store="steam" data-title="clash: artifacts of chaos">
         <span class="game-title">Clash: Artifacts of Chaos</span>
+        <span class="badge badge-steam">Steam</span>
+    </div>
+    
+    <div class="game-card" data-store="steam" data-title="classic marathon">
+        <span class="game-title">Classic Marathon</span>
         <span class="badge badge-steam">Steam</span>
     </div>
     
@@ -2067,6 +2094,11 @@
     
     <div class="game-card" data-store="steam" data-title="ducktales remastered">
         <span class="game-title">DuckTales Remastered</span>
+        <span class="badge badge-steam">Steam</span>
+    </div>
+    
+    <div class="game-card" data-store="steam" data-title="dudelings: arcade sportsball">
+        <span class="game-title">Dudelings: Arcade Sportsball</span>
         <span class="badge badge-steam">Steam</span>
     </div>
     
@@ -2995,11 +3027,6 @@
         <span class="badge badge-steam">Steam</span>
     </div>
     
-    <div class="game-card" data-store="steam" data-title="grand theft auto iii">
-        <span class="game-title">Grand Theft Auto III</span>
-        <span class="badge badge-steam">Steam</span>
-    </div>
-    
     <div class="game-card" data-store="steam" data-title="grand theft auto iv: the complete edition">
         <span class="game-title">Grand Theft Auto IV: The Complete Edition</span>
         <span class="badge badge-steam">Steam</span>
@@ -3017,16 +3044,6 @@
     
     <div class="game-card" data-store="steam" data-title="grand theft auto: san andreas">
         <span class="game-title">Grand Theft Auto: San Andreas</span>
-        <span class="badge badge-steam">Steam</span>
-    </div>
-    
-    <div class="game-card" data-store="steam" data-title="grand theft auto: san andreas">
-        <span class="game-title">Grand Theft Auto: San Andreas</span>
-        <span class="badge badge-steam">Steam</span>
-    </div>
-    
-    <div class="game-card" data-store="steam" data-title="grand theft auto: vice city">
-        <span class="game-title">Grand Theft Auto: Vice City</span>
         <span class="badge badge-steam">Steam</span>
     </div>
     
@@ -4040,6 +4057,11 @@
         <span class="badge badge-epic">Epic Games</span>
     </div>
     
+    <div class="game-card" data-store="steam" data-title="lego® star wars™: the skywalker saga">
+        <span class="game-title">LEGO® Star Wars™: The Skywalker Saga</span>
+        <span class="badge badge-steam">Steam</span>
+    </div>
+    
     <div class="game-card" data-store="gog" data-title="lego® the hobbit™">
         <span class="game-title">LEGO® The Hobbit™</span>
         <span class="badge badge-gog">GOG</span>
@@ -4122,6 +4144,11 @@
     
     <div class="game-card" data-store="steam" data-title="lossless scaling">
         <span class="game-title">Lossless Scaling</span>
+        <span class="badge badge-steam">Steam</span>
+    </div>
+    
+    <div class="game-card" data-store="steam" data-title="lost ark">
+        <span class="game-title">Lost Ark</span>
         <span class="badge badge-steam">Steam</span>
     </div>
     
@@ -5148,6 +5175,11 @@
     <div class="game-card" data-store="gog" data-title="phantasie memorial set">
         <span class="game-title">Phantasie Memorial Set</span>
         <span class="badge badge-gog">GOG</span>
+    </div>
+    
+    <div class="game-card" data-store="steam" data-title="phantasy star online 2 new genesis">
+        <span class="game-title">Phantasy Star Online 2 New Genesis</span>
+        <span class="badge badge-steam">Steam</span>
     </div>
     
     <div class="game-card" data-store="steam" data-title="phoenix wright: ace attorney trilogy">
@@ -6555,6 +6587,11 @@
         <span class="badge badge-steam">Steam</span>
     </div>
     
+    <div class="game-card" data-store="steam" data-title="star wars™: the old republic™">
+        <span class="game-title">STAR WARS™: The Old Republic™</span>
+        <span class="badge badge-steam">Steam</span>
+    </div>
+    
     <div class="game-card" data-store="steam" data-title="star wars™: tie fighter special edition">
         <span class="game-title">STAR WARS™: TIE Fighter Special Edition</span>
         <span class="badge badge-steam">Steam</span>
@@ -7300,11 +7337,6 @@
         <span class="badge badge-prime">Prime Gaming</span>
     </div>
     
-    <div class="game-card" data-store="prime" data-title="the last blade">
-        <span class="game-title">The Last Blade</span>
-        <span class="badge badge-prime">Prime Gaming</span>
-    </div>
-    
     <div class="game-card" data-store="prime" data-title="the last blade 2">
         <span class="game-title">The Last Blade 2</span>
         <span class="badge badge-prime">Prime Gaming</span>
@@ -7607,6 +7639,11 @@
     
     <div class="game-card" data-store="steam" data-title="titanfall® 2">
         <span class="game-title">Titanfall® 2</span>
+        <span class="badge badge-steam">Steam</span>
+    </div>
+    
+    <div class="game-card" data-store="steam" data-title="tmodloader">
+        <span class="game-title">tModLoader</span>
         <span class="badge badge-steam">Steam</span>
     </div>
     
@@ -8020,11 +8057,6 @@
         <span class="badge badge-prime">Prime Gaming</span>
     </div>
     
-    <div class="game-card" data-store="prime" data-title="twinkle star sprites">
-        <span class="game-title">Twinkle Star Sprites</span>
-        <span class="badge badge-prime">Prime Gaming</span>
-    </div>
-    
     <div class="game-card" data-store="epic" data-title="two point hospital">
         <span class="game-title">Two Point Hospital</span>
         <span class="badge badge-epic">Epic Games</span>
@@ -8190,6 +8222,11 @@
         <span class="badge badge-steam">Steam</span>
     </div>
     
+    <div class="game-card" data-store="steam" data-title="warframe">
+        <span class="game-title">Warframe</span>
+        <span class="badge badge-steam">Steam</span>
+    </div>
+    
     <div class="game-card" data-store="gog" data-title="wargame construction set iii: age of rifles 1846-1905 + campaigns">
         <span class="game-title">Wargame Construction Set III: Age of Rifles 1846-1905 + Campaigns</span>
         <span class="badge badge-gog">GOG</span>
@@ -8263,6 +8300,11 @@
     <div class="game-card" data-store="epic" data-title="weird west: definitive edition">
         <span class="game-title">Weird West: Definitive Edition</span>
         <span class="badge badge-epic">Epic Games</span>
+    </div>
+    
+    <div class="game-card" data-store="steam" data-title="where winds meet">
+        <span class="game-title">Where Winds Meet</span>
+        <span class="badge badge-steam">Steam</span>
     </div>
     
     <div class="game-card" data-store="prime" data-title="whiskey & zombies: great southern zombie escape">
