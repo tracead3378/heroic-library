@@ -1,386 +1,171 @@
-import glob
-import json
 import os
+import json
 import re
-import subprocess
 import urllib.request
+import urllib.parse
+from bs4 import BeautifulSoup
 
 # --- CONFIGURATION ---
+# Falls back to local credentials when running on Bazzite PC
 STEAM_API_KEY = os.getenv("STEAM_API_KEY", "EEA98A0A9E0090B7D0723287A82BA0EF")
 STEAM_ID = os.getenv("STEAM_ID", "76561198847656848")
 
+# Paths
+HEROIC_CACHE_PATH = os.path.expanduser("~/.var/app/com.heroicgameslauncher.hgl/config/heroic/store_cache")
+INDEX_HTML_PATH = os.path.expanduser("~/heroic-github/index.html")
 
-HEROIC_CACHE_PATH = os.path.expanduser(
-    "~/.var/app/com.heroicgameslauncher.hgl/config/heroic/store_cache"
-)
-
-
-def load_games():
-    games = []
-
-    # 1. Epic Games (Heroic)
-    try:
-        with open(
-            os.path.join(HEROIC_CACHE_PATH, "legendary_library.json")
-        ) as f:
-            data = json.load(f)
-            for item in data.get("library", []):
-                app_type = item.get("app_type", "").upper()
-                is_dlc = item.get("is_dlc", False)
-
-                if not is_dlc and app_type in ["GAME", "BASE", ""]:
-                    title = item.get("title")
-                    if title:
-                        games.append(
-                            {
-                                "title": title,
-                                "store": "Epic Games",
-                                "key": "epic",
-                            }
-                        )
-    except Exception as e:
-        print(f"Warning: Epic library load issue: {e}")
-
-    # 2. GOG (Heroic)
-    try:
-        with open(os.path.join(HEROIC_CACHE_PATH, "gog_library.json")) as f:
-            data = json.load(f)
-            for item in data.get("games", []):
-                is_dlc = item.get("is_dlc", False) or item.get("type") == "dlc"
-                is_hidden = item.get("is_hidden", False)
-
-                if not is_dlc and not is_hidden:
-                    title = item.get("title")
-                    if title:
-                        games.append(
-                            {"title": title, "store": "GOG", "key": "gog"}
-                        )
-    except Exception as e:
-        print(f"Warning: GOG library load issue: {e}")
-
-    # 3. Prime Gaming (Heroic)
-    try:
-        with open(os.path.join(HEROIC_CACHE_PATH, "nile_library.json")) as f:
-            data = json.load(f)
-            for item in data.get("library", []):
-                title = item.get("title")
-                if title:
-                    games.append(
-                        {
-                            "title": title,
-                            "store": "Prime Gaming",
-                            "key": "prime",
-                        }
-                    )
-    except Exception as e:
-        print(f"Warning: Prime library load issue: {e}")
-
-    # 4. Steam Library
-    steam_titles = set()
-
-    if (
-        STEAM_API_KEY
-        and STEAM_API_KEY != "YOUR_STEAM_API_KEY_HERE"
-        and STEAM_ID
-        and STEAM_ID != "YOUR_17_DIGIT_STEAM_ID"
-    ):
+def safe_load_json(file_path):
+    """Safely load JSON files if they exist locally."""
+    if os.path.exists(file_path):
         try:
-            url = f"http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key={STEAM_API_KEY}&steamid={STEAM_ID}&include_appinfo=true&include_played_free_games=true&format=json"
-            req = urllib.request.Request(
-                url, headers={"User-Agent": "Mozilla/5.0"}
-            )
-            with urllib.request.urlopen(req) as response:
-                steam_data = json.loads(response.read().decode())
-                owned_games = steam_data.get("response", {}).get("games", [])
-
-                for game in owned_games:
-                    title = game.get("name")
-                    if title:
-                        steam_titles.add(title)
+            with open(file_path, "r", encoding="utf-8") as f:
+                return json.load(f)
         except Exception as e:
-            print(f"Warning: Steam Web API issue: {e}")
+            print(f"Warning: Failed to load {file_path}: {e}")
+    return None
 
-    search_roots = [
-        os.path.expanduser("~"),
-        "/run/media",
-        "/var/mnt",
-        "/mnt",
-    ]
-
-    for root in search_roots:
-        if os.path.exists(root):
-            for current_dir, dirs, _ in os.walk(root):
-                if os.path.basename(current_dir) == "steamapps":
-                    manifest_files = glob.glob(
-                        os.path.join(current_dir, "appmanifest_*.acf")
-                    )
-                    for manifest_path in manifest_files:
-                        try:
-                            with open(
-                                manifest_path,
-                                "r",
-                                encoding="utf-8",
-                                errors="ignore",
-                            ) as f:
-                                content = f.read()
-                                name_match = re.search(
-                                    r'"name"\s+"([^"]+)"', content
-                                )
-                                if name_match:
-                                    title = name_match.group(1)
-                                    if not any(
-                                        t in title
-                                        for t in [
-                                            "Steamworks",
-                                            "Proton",
-                                            "Steam Linux Runtime",
-                                        ]
-                                    ):
-                                        steam_titles.add(title)
-                        except Exception:
-                            pass
-                    dirs.clear()
-
-    for title in steam_titles:
-        games.append({"title": title, "store": "Steam", "key": "steam"})
-
-    unique_games = {}
-    for g in games:
-        unique_key = (g["title"].lower(), g["key"])
-        if unique_key not in unique_games:
-            unique_games[unique_key] = g
-
-    return sorted(unique_games.values(), key=lambda x: x["title"].lower())
-
-
-games = load_games()
-
-epic_count = sum(1 for g in games if g["key"] == "epic")
-gog_count = sum(1 for g in games if g["key"] == "gog")
-prime_count = sum(1 for g in games if g["key"] == "prime")
-steam_count = sum(1 for g in games if g["key"] == "steam")
-
-cards_html = "".join(
-    f"""
-    <div class="game-card" data-store="{g['key']}" data-title="{g['title'].lower()}">
-        <span class="game-title">{g['title']}</span>
-        <span class="badge badge-{g['key']}">{g['store']}</span>
-    </div>
+def extract_existing_non_steam_games():
     """
-    for g in games
-)
+    If running in cloud without Heroic caches, parse index.html
+    to keep existing Epic, GOG, and Prime games intact!
+    """
+    saved_games = []
+    if not os.path.exists(INDEX_HTML_PATH):
+        return saved_games
 
-html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>My PC Gaming Library</title>
+    try:
+        with open(INDEX_HTML_PATH, "r", encoding="utf-8") as f:
+            soup = BeautifulSoup(f.read(), "html.parser")
+            cards = soup.find_all("div", class_="game-card")
+            
+            for card in cards:
+                store_type = card.get("data-store")
+                if store_type in ["epic", "gog", "prime"]:
+                    title_elem = card.find("h3") or card.find("div", class_="game-title")
+                    title = title_elem.get_text(strip=True) if title_elem else "Unknown Title"
+                    
+                    store_label = "Epic Games" if store_type == "epic" else ("GOG" if store_type == "gog" else "Prime Gaming")
+                    saved_games.append({
+                        "title": title,
+                        "store": store_label,
+                        "key": store_type
+                    })
+        print(f"Preserved {len(saved_games)} existing non-Steam games from index.html")
+    except Exception as e:
+        print(f"Warning: Could not extract non-Steam games from index.html: {e}")
+        
+    return saved_games
 
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#121212">
+def fetch_steam_games():
+    """Fetch owned games using Steam Web API."""
+    steam_games = []
+    if not STEAM_API_KEY or "YOUR_LOCAL" in STEAM_API_KEY:
+        print("Steam API Key not set. Skipping Steam fetch.")
+        return steam_games
 
-    <link rel="manifest" href='data:application/manifest+json,{{
-        "name": "My PC Gaming Library",
-        "short_name": "Library",
-        "start_url": ".",
-        "display": "standalone",
-        "background_color": "#121212",
-        "theme_color": "#121212"
-    }}'>
+    url = f"http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key={STEAM_API_KEY}&steamid={STEAM_ID}&include_appinfo=true&format=json"
+    
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            games_list = data.get("response", {}).get("games", [])
+            
+            for game in games_list:
+                steam_games.append({
+                    "title": game.get("name", "Unknown Steam Game"),
+                    "store": "Steam",
+                    "key": "steam",
+                    "appid": game.get("appid")
+                })
+        print(f"Successfully fetched {len(steam_games)} games from Steam API.")
+    except Exception as e:
+        print(f"Error fetching Steam games: {e}")
 
-    <style>
-        * {{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }}
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: #121212;
-            color: #ffffff;
-            margin: 0;
-            padding: 16px;
-        }}
+    return steam_games
 
-        .sticky-header {{
-            position: sticky;
-            top: 0;
-            background: #121212;
-            padding-bottom: 12px;
-            border-bottom: 1px solid #2a2a2a;
-            margin-bottom: 16px;
-            z-index: 100;
-        }}
+def load_local_heroic_games():
+    """Load Epic, GOG, and Prime games from local Heroic cache files."""
+    heroic_games = []
 
-        .title-row {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }}
+    # 1. Epic Games
+    epic_data = safe_load_json(os.path.join(HEROIC_CACHE_PATH, "legendary_library.json"))
+    if epic_data:
+        for item in epic_data.get("library", []):
+            if not item.get("is_dlc", False) and item.get("app_type", "").upper() in ["GAME", "BASE", ""]:
+                if item.get("title"):
+                    heroic_games.append({"title": item.get("title"), "store": "Epic Games", "key": "epic"})
 
-        h2 {{ margin: 0; font-size: 20px; font-weight: 700; color: #fff; }}
+    # 2. GOG
+    gog_data = safe_load_json(os.path.join(HEROIC_CACHE_PATH, "gog_library.json"))
+    if gog_data:
+        for item in gog_data.get("games", []):
+            if not item.get("is_dlc", False) and not item.get("is_hidden", False):
+                if item.get("title"):
+                    heroic_games.append({"title": item.get("title"), "store": "GOG", "key": "gog"})
 
-        .search-box {{
-            width: 100%;
-            padding: 12px 14px;
-            background: #1e1e1e;
-            border: 1px solid #333;
-            border-radius: 8px;
-            color: #fff;
-            font-size: 14px;
-            outline: none;
-            margin-bottom: 12px;
-        }}
+    # 3. Prime Gaming
+    nile_data = safe_load_json(os.path.join(HEROIC_CACHE_PATH, "nile_library.json"))
+    if nile_data:
+        for item in nile_data.get("library", []):
+            if item.get("title"):
+                heroic_games.append({"title": item.get("title"), "store": "Prime Gaming", "key": "prime"})
 
-        .search-box:focus {{
-            border-color: #555;
-        }}
+    return heroic_games
 
-        .tabs {{
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            padding-bottom: 4px;
-            scrollbar-width: none;
-        }}
+def main():
+    print("--- Starting Library Sync ---")
 
-        .tabs::-webkit-scrollbar {{ display: none; }}
+    # Fetch Steam Games
+    steam_games = fetch_steam_games()
 
-        .tab-btn {{
-            background: #1e1e1e;
-            border: 1px solid #333;
-            color: #aaa;
-            padding: 8px 14px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-            white-space: nowrap;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }}
+    # Fetch Heroic Games (Local or Preserved)
+    local_heroic_games = load_local_heroic_games()
+    
+    if local_heroic_games:
+        print(f"Found {len(local_heroic_games)} games locally in Heroic caches.")
+        non_steam_games = local_heroic_games
+    else:
+        print("Heroic cache files not found locally. Preserving games from index.html...")
+        non_steam_games = extract_existing_non_steam_games()
 
-        .tab-btn.active {{
-            background: #ffffff;
-            color: #121212;
-            border-color: #ffffff;
-        }}
+    # Combine all games and remove duplicates
+    all_games = steam_games + non_steam_games
+    unique_games = {g['title']: g for g in all_games}.values()
+    sorted_games = sorted(unique_games, key=lambda x: x['title'].lower())
 
-        .card-container {{
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }}
+    print(f"Total Unique Games to Render: {len(sorted_games)}")
 
-        .game-card {{
-            background: #1a1a1a;
-            border: 1px solid #282828;
-            border-radius: 10px;
-            padding: 14px 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }}
+    # Update index.html
+    if os.path.exists(INDEX_HTML_PATH):
+        with open(INDEX_HTML_PATH, "r", encoding="utf-8") as f:
+            content = f.read()
 
-        .game-title {{
-            font-size: 15px;
-            font-weight: 500;
-            color: #e2e8f0;
-            padding-right: 12px;
-            line-height: 1.3;
-        }}
+        # Build Card HTML
+        cards_html = []
+        for g in sorted_games:
+            card = f'''      <div class="game-card" data-store="{g['key']}">
+        <div class="game-title">{g['title']}</div>
+        <div class="store-badge {g['key']}">{g['store']}</div>
+      </div>'''
+            cards_html.append(card)
 
-        .badge {{
-            font-size: 11px;
-            font-weight: 700;
-            padding: 5px 9px;
-            border-radius: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            white-space: nowrap;
-        }}
+        new_grid_content = "\n" + "\n".join(cards_html) + "\n    "
+        
+        # Replace grid container content safely
+        updated_content = re.sub(
+            r'(<div id="game-grid"[^>]*>)(.*?)(</div>\s*<!-- /game-grid -->|</div>\s*</main>)',
+            rf'\1{new_grid_content}\3',
+            content,
+            flags=re.DOTALL
+        )
 
-        /* Steam Official Logo Blue Palette (#00adee accent on dark #171a21 base) */
-        .badge-steam {{ background: #171a21; color: #00adee; border: 1px solid #00adee; }}
-        .badge-epic {{ background: rgba(255, 255, 255, 0.08); color: #f5f5f5; border: 1px solid #444; }}
-        .badge-gog {{ background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); }}
-        .badge-prime {{ background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); }}
+        with open(INDEX_HTML_PATH, "w", encoding="utf-8") as f:
+            f.write(updated_content)
 
-        .empty-state {{
-            text-align: center;
-            color: #666;
-            padding: 40px 0;
-            font-size: 14px;
-            display: none;
-        }}
-    </style>
-</head>
-<body>
+        print("Successfully updated index.html with all combined libraries!")
+    else:
+        print("Error: index.html was not found.")
 
-    <div class="sticky-header">
-        <div class="title-row">
-            <h2>My PC Gaming Library</h2>
-            <span style="font-size: 13px; color: #888;">{len(games)} Total Games</span>
-        </div>
-
-        <input type="text" id="searchInput" class="search-box" placeholder="Search games..." oninput="filterGames()">
-
-        <div class="tabs">
-            <button class="tab-btn active" onclick="setCategory('all', this)">All ({len(games)})</button>
-            <button class="tab-btn" onclick="setCategory('steam', this)">Steam ({steam_count})</button>
-            <button class="tab-btn" onclick="setCategory('epic', this)">Epic ({epic_count})</button>
-            <button class="tab-btn" onclick="setCategory('gog', this)">GOG ({gog_count})</button>
-            <button class="tab-btn" onclick="setCategory('prime', this)">Prime ({prime_count})</button>
-        </div>
-    </div>
-
-    <div class="card-container" id="cardContainer">
-        {cards_html}
-    </div>
-
-    <div class="empty-state" id="emptyState">No games found</div>
-
-    <script>
-        let currentCategory = 'all';
-
-        function setCategory(category, btn) {{
-            currentCategory = category;
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            filterGames();
-        }}
-
-        function filterGames() {{
-            const query = document.getElementById('searchInput').value.toLowerCase();
-            const cards = document.querySelectorAll('.game-card');
-            let visibleCount = 0;
-
-            cards.forEach(card => {{
-                const matchesCategory = (currentCategory === 'all' || card.dataset.store === currentCategory);
-                const matchesSearch = card.dataset.title.includes(query);
-
-                if (matchesCategory && matchesSearch) {{
-                    card.style.display = 'flex';
-                    visibleCount++;
-                }} else {{
-                    card.style.display = 'none';
-                }}
-            }});
-
-            document.getElementById('emptyState').style.display = visibleCount === 0 ? 'block' : 'none';
-        }}
-    </script>
-</body>
-</html>"""
-
-with open("index.html", "w") as f:
-    f.write(html)
-
-subprocess.run(["git", "add", "index.html"])
-subprocess.run([
-    "git",
-    "commit",
-    "-m",
-    "Update Steam badge styling to official logo blue (#00adee)",
-])
-subprocess.run(["git", "push"])
-print("Updated library with official Steam blue pushed successfully!")
+if __name__ == "__main__":
+    main()
