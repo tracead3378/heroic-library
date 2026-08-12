@@ -7,8 +7,8 @@ from bs4 import BeautifulSoup
 
 # --- CONFIGURATION ---
 # Falls back to local credentials when running on Bazzite PC
-STEAM_API_KEY = os.getenv("STEAM_API_KEY", "EEA98A0A9E0090B7D0723287A82BA0EF")
-STEAM_ID = os.getenv("STEAM_ID", "76561198847656848")
+STEAM_API_KEY = os.getenv("STEAM_API_KEY", "YOUR_LOCAL_32_CHAR_KEY")
+STEAM_ID = os.getenv("STEAM_ID", "7656119XXXXXXXXXX")
 
 # Paths
 HEROIC_CACHE_PATH = os.path.expanduser("~/.var/app/com.heroicgameslauncher.hgl/config/heroic/store_cache")
