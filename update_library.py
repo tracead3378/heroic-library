@@ -25,14 +25,34 @@ def safe_load_json(file_path):
     return None
 
 def extract_existing_non_steam_games():
-    """
-    If running in cloud without Heroic caches, parse index.html
-    to keep existing Epic, GOG, and Prime games intact!
-    """
+    """Extract non-Steam games directly from index.html if local caches are missing."""
     saved_games = []
     if not os.path.exists(INDEX_HTML_PATH):
         return saved_games
 
+    try:
+        with open(INDEX_HTML_PATH, "r", encoding="utf-8") as f:
+            soup = BeautifulSoup(f.read(), "html.parser")
+            cards = soup.find_all("div", class_="game-card")
+            
+            for card in cards:
+                store_type = card.get("data-store")
+                if store_type in ["epic", "gog", "prime"]:
+                    # Look specifically for game-title div or h3
+                    title_elem = card.find("div", class_="game-title") or card.find("h3")
+                    if title_elem:
+                        title = title_elem.get_text(strip=True)
+                        store_label = "Epic Games" if store_type == "epic" else ("GOG" if store_type == "gog" else "Prime Gaming")
+                        saved_games.append({
+                            "title": title,
+                            "store": store_label,
+                            "key": store_type
+                        })
+        print(f"Preserved {len(saved_games)} existing non-Steam games from index.html")
+    except Exception as e:
+        print(f"Warning: Could not extract non-Steam games: {e}")
+        
+    return saved_games
     try:
         with open(INDEX_HTML_PATH, "r", encoding="utf-8") as f:
             soup = BeautifulSoup(f.read(), "html.parser")
