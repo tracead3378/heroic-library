@@ -1,0 +1,2 @@
+~/heroic-github/auto_update.sh
+git push
