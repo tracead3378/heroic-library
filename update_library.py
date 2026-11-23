@@ -3,6 +3,7 @@ import json
 import os
 import re
 import subprocess
+import time
 import urllib.request
 from bs4 import BeautifulSoup
 
@@ -10,10 +11,14 @@ from bs4 import BeautifulSoup
 STEAM_API_KEY = os.getenv("STEAM_API_KEY", "EEA98A0A9E0090B7D0723287A82BA0EF")
 STEAM_ID = os.getenv("STEAM_ID", "76561198847656848")
 
+REPO_DIR = os.path.dirname(os.path.abspath(__file__))
 HEROIC_CACHE_PATH = os.path.expanduser(
     "~/.var/app/com.heroicgameslauncher.hgl/config/heroic/store_cache"
 )
-INDEX_HTML_PATH = "index.html"
+INDEX_HTML_PATH = os.path.join(REPO_DIR, "index.html")
+HISTORY_PATH = os.path.join(REPO_DIR, "library_history.json")
+RECENT_DAYS = 14
+
 
 def extract_existing_non_steam_games():
     """Extract and preserve non-Steam games from index.html during cloud runs."""
@@ -34,23 +39,38 @@ def extract_existing_non_steam_games():
                         preserved_games.append({
                             "title": title_elem.get_text(strip=True),
                             "store": badge_elem.get_text(strip=True),
-                            "key": store_key
+                            "key": store_key,
                         })
         print(f"Cloud mode: Preserved {len(preserved_games)} non-Steam games from index.html.")
     except Exception as e:
         print(f"Warning: Failed to parse index.html for non-Steam preservation: {e}")
-        
+
     return preserved_games
+
+
+def load_history():
+    if os.path.exists(HISTORY_PATH):
+        try:
+            with open(HISTORY_PATH, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Warning: Could not read {HISTORY_PATH}: {e}")
+    return {}
+
+
+def save_history(history):
+    with open(HISTORY_PATH, "w", encoding="utf-8") as f:
+        json.dump(history, f, indent=2, sort_keys=True)
+
 
 def load_games():
     games = []
     heroic_caches_found = os.path.exists(HEROIC_CACHE_PATH)
 
     if heroic_caches_found:
-        # --- LOCAL MODE: Read directly from Heroic cache files ---
         # 1. Epic Games
         try:
-            with open(os.path.join(HEROIC_CACHE_PATH, "legendary_library.json")) as f:
+            with open(os.path.join(HEROIC_CACHE_PATH, "legendary_library.json"), encoding="utf-8") as f:
                 data = json.load(f)
                 for item in data.get("library", []):
                     app_type = item.get("app_type", "").upper()
@@ -62,7 +82,7 @@ def load_games():
 
         # 2. GOG
         try:
-            with open(os.path.join(HEROIC_CACHE_PATH, "gog_library.json")) as f:
+            with open(os.path.join(HEROIC_CACHE_PATH, "gog_library.json"), encoding="utf-8") as f:
                 data = json.load(f)
                 for item in data.get("games", []):
                     is_dlc = item.get("is_dlc", False) or item.get("type") == "dlc"
@@ -74,7 +94,7 @@ def load_games():
 
         # 3. Prime Gaming
         try:
-            with open(os.path.join(HEROIC_CACHE_PATH, "nile_library.json")) as f:
+            with open(os.path.join(HEROIC_CACHE_PATH, "nile_library.json"), encoding="utf-8") as f:
                 data = json.load(f)
                 for item in data.get("library", []):
                     if item.get("title"):
@@ -82,10 +102,9 @@ def load_games():
         except Exception as e:
             print(f"Warning: Prime library load issue: {e}")
     else:
-        # --- CLOUD MODE: Preserve non-Steam games from current index.html ---
         games.extend(extract_existing_non_steam_games())
 
-    # 4. Fetch Fresh Steam Library via Web API
+    # 4. Fetch Steam Library via Web API
     steam_titles = set()
     if STEAM_API_KEY and STEAM_ID:
         try:
@@ -110,10 +129,31 @@ def load_games():
         if unique_key not in unique_games:
             unique_games[unique_key] = g
 
-    return sorted(unique_games.values(), key=lambda x: x["title"].lower())
+    # Track first-seen timestamps for "Recently Added"
+    now = int(time.time())
+    cutoff = now - (RECENT_DAYS * 86400)
+    history = load_history()
+    is_initial_baseline = len(history) == 0
+
+    sorted_games = sorted(unique_games.values(), key=lambda x: x["title"].lower())
+    recent_count = 0
+
+    for g in sorted_games:
+        hist_key = f"{g['key']}::{g['title'].strip().lower()}"
+        if hist_key not in history:
+            # On the very first run with no history file, mark existing games as older
+            # so your whole library doesn't flood "Recent" at once.
+            history[hist_key] = now if not is_initial_baseline else (cutoff - 1)
+        g["is_recent"] = history[hist_key] >= cutoff
+        if g["is_recent"]:
+            recent_count += 1
+
+    save_history(history)
+    return sorted_games, recent_count
+
 
 def main():
-    games = load_games()
+    games, recent_count = load_games()
 
     epic_count = sum(1 for g in games if g["key"] == "epic")
     gog_count = sum(1 for g in games if g["key"] == "gog")
@@ -122,8 +162,8 @@ def main():
 
     cards_html = "".join(
         f"""
-    <div class="game-card" data-store="{g['key']}" data-title="{g['title'].lower()}">
-        <span class="game-title">{g['title']}</span>
+    <div class="game-card" data-store="{g['key']}" data-title="{g['title'].lower()}" data-recent="{'true' if g['is_recent'] else 'false'}">
+        <span class="game-title">{g['title']}{' <span class="new-tag">NEW</span>' if g['is_recent'] else ''}</span>
         <span class="badge badge-{g['key']}">{g['store']}</span>
     </div>
     """
@@ -231,6 +271,18 @@ def main():
             padding-right: 12px;
             line-height: 1.3;
         }}
+        .new-tag {{
+            display: inline-block;
+            margin-left: 8px;
+            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: 700;
+            border-radius: 4px;
+            background: rgba(34, 197, 94, 0.16);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.35);
+            vertical-align: middle;
+        }}
         .badge {{
             font-size: 11px;
             font-weight: 700;
@@ -262,6 +314,7 @@ def main():
         <input type="text" id="searchInput" class="search-box" placeholder="Search games..." oninput="filterGames()">
         <div class="tabs">
             <button class="tab-btn active" onclick="setCategory('all', this)">All ({len(games)})</button>
+            <button class="tab-btn" onclick="setCategory('recent', this)">Recent ({recent_count})</button>
             <button class="tab-btn" onclick="setCategory('steam', this)">Steam ({steam_count})</button>
             <button class="tab-btn" onclick="setCategory('epic', this)">Epic ({epic_count})</button>
             <button class="tab-btn" onclick="setCategory('gog', this)">GOG ({gog_count})</button>
@@ -285,7 +338,10 @@ def main():
             const cards = document.querySelectorAll('.game-card');
             let visibleCount = 0;
             cards.forEach(card => {{
-                const matchesCategory = (currentCategory === 'all' || card.dataset.store === currentCategory);
+                const matchesCategory =
+                    currentCategory === 'all' ||
+                    (currentCategory === 'recent' && card.dataset.recent === 'true') ||
+                    card.dataset.store === currentCategory;
                 const matchesSearch = card.dataset.title.includes(query);
                 if (matchesCategory && matchesSearch) {{
                     card.style.display = 'flex';
@@ -303,6 +359,7 @@ def main():
     with open(INDEX_HTML_PATH, "w", encoding="utf-8") as f:
         f.write(html)
     print("index.html successfully generated.")
+
 
 if __name__ == "__main__":
     main()
